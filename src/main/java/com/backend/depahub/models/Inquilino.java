@@ -29,7 +29,7 @@ public class Inquilino {
     @Column(nullable = false, unique = true, length = 9)
     private String telefono;
 
-    @Column(unique = true, length = 45)
+    @Column(nullable = false, unique = true, length = 45)
     private String email;
 
     private LocalDate fechaNacimiento;
@@ -38,7 +38,7 @@ public class Inquilino {
     @Column(nullable = false, length = 30)
     private EstadoInquilino estado = EstadoInquilino.ACTIVO;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "inmueble_id")
     @JsonIgnoreProperties({"propiedad"})
     @OnDelete(action = OnDeleteAction.RESTRICT)
