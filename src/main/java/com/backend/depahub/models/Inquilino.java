@@ -39,7 +39,7 @@ public class Inquilino {
     private EstadoInquilino estado = EstadoInquilino.ACTIVO;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "inmueble_id", nullable = false)
+    @JoinColumn(name = "inmueble_id")
     @JsonIgnoreProperties({"propiedad"})
     @OnDelete(action = OnDeleteAction.RESTRICT)
     private Inmueble inmueble;
