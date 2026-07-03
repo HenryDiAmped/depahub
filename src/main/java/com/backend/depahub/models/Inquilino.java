@@ -40,7 +40,7 @@ public class Inquilino {
 
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "inmueble_id")
-    @JsonIgnoreProperties({"propiedad"})
+    //@JsonIgnoreProperties({"propiedad"})
     @OnDelete(action = OnDeleteAction.RESTRICT)
     private Inmueble inmueble;
 

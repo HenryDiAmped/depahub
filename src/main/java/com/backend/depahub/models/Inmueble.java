@@ -31,7 +31,7 @@ public class Inmueble {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 45)
+    @Column(nullable = false, length = 45)
     private String nombre;
 
     @Column(nullable = false)
@@ -49,7 +49,7 @@ public class Inmueble {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "propiedad_id", nullable = false)
-    @JsonIgnoreProperties({"administrador"})
+    //@JsonIgnoreProperties({"administrador"})
     @OnDelete(action = OnDeleteAction.RESTRICT)
     private Propiedad propiedad;
 
