@@ -44,7 +44,7 @@ public class Inmueble {
     @Column(nullable = false, length = 30)
     private EstadoInmueble estado = EstadoInmueble.DISPONIBLE;
 
-    @Column(length = 45)
+    @Column(length = 255)
     private String descripcion;
 
     @ManyToOne(fetch = FetchType.EAGER)

@@ -29,7 +29,7 @@ public class Inquilino {
     @Column(nullable = false, unique = true, length = 9)
     private String telefono;
 
-    @Column(nullable = false, unique = true, length = 45)
+    @Column(nullable = false, length = 45)
     private String email;
 
     private LocalDate fechaNacimiento;

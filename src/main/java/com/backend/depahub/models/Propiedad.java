@@ -29,7 +29,7 @@ public class Propiedad {
     @Column(nullable = false, length = 45)
     private String distrito;
 
-    @Column(length = 45)
+    @Column(length = 255)
     private String descripcion;
 
     @ManyToOne(fetch = FetchType.EAGER)
