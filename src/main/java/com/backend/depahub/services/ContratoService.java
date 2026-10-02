@@ -74,8 +74,20 @@ public class ContratoService extends BaseCrudService<Contrato> {
         if (contrato.getFechaFin().isBefore(contrato.getFechaInicio())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La fecha de fin no puede ser anterior a la fecha de inicio");
         }
+        LocalDate finPrimerPeriodo = contrato.getFechaInicio().plusMonths(1).minusDays(1);
+        if (contrato.getFechaFin().isBefore(finPrimerPeriodo)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El contrato debe tener una duración mínima de un mes");
+        }
         if (contrato.getFrecuencia() == null || contrato.getFrecuencia() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La frecuencia debe ser mayor que cero");
+        }
+        LocalDate finPrimerPeriodoSegunFrecuencia = contrato.getFechaInicio()
+                .plusMonths(contrato.getFrecuencia())
+                .minusDays(1);
+        if (contrato.getFechaFin().isBefore(finPrimerPeriodoSegunFrecuencia)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La frecuencia de pago no es compatible con la duración del contrato");
         }
 
         List<CuotaProgramada> cuotas = new ArrayList<>();
@@ -86,7 +98,7 @@ public class ContratoService extends BaseCrudService<Contrato> {
             LocalDate finPeriodo = siguientePeriodo.minusDays(1);
 
             if (!finPeriodo.isAfter(contrato.getFechaFin())) {
-                cuotas.add(new CuotaProgramada(inicioPeriodo, contrato.getMontoAlquiler(), false));
+                cuotas.add(new CuotaProgramada(siguientePeriodo, contrato.getMontoAlquiler(), false));
                 inicioPeriodo = siguientePeriodo;
                 continue;
             }
@@ -94,7 +106,7 @@ public class ContratoService extends BaseCrudService<Contrato> {
             long diasPeriodoCompleto = ChronoUnit.DAYS.between(inicioPeriodo, siguientePeriodo);
             long diasProrrateados = ChronoUnit.DAYS.between(inicioPeriodo, contrato.getFechaFin()) + 1;
             cuotas.add(new CuotaProgramada(
-                    inicioPeriodo,
+                    contrato.getFechaFin(),
                     contrato.getMontoAlquiler()
                             .multiply(java.math.BigDecimal.valueOf(diasProrrateados))
                             .divide(java.math.BigDecimal.valueOf(diasPeriodoCompleto), 2, RoundingMode.HALF_UP),
