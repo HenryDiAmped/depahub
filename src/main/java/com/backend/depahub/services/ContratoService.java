@@ -37,6 +37,7 @@ public class ContratoService extends BaseCrudService<Contrato> {
 
     @Override
     protected void prepararCreacion(Contrato entity) {
+        calcularNumeroCuotas(entity);
         if (entity.getFechaRegistro() == null) {
             entity.setFechaRegistro(LocalDate.now());
         }
@@ -44,9 +45,34 @@ public class ContratoService extends BaseCrudService<Contrato> {
 
     @Override
     protected void prepararActualizacion(Contrato entity, Contrato actual) {
+        calcularNumeroCuotas(entity);
         if (entity.getFechaRegistro() == null) {
             entity.setFechaRegistro(actual.getFechaRegistro());
         }
+    }
+
+    private void calcularNumeroCuotas(Contrato contrato) {
+        if (contrato.getFechaInicio() == null || contrato.getFechaFin() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las fechas de inicio y fin son obligatorias");
+        }
+        if (contrato.getFechaFin().isBefore(contrato.getFechaInicio())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La fecha de fin no puede ser anterior a la fecha de inicio");
+        }
+        if (contrato.getFrecuencia() == null || contrato.getFrecuencia() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La frecuencia debe ser mayor que cero");
+        }
+
+        int cuotasCompletas = 0;
+        LocalDate inicioPeriodo = contrato.getFechaInicio();
+
+        while (!inicioPeriodo.plusMonths(contrato.getFrecuencia()).minusDays(1)
+                .isAfter(contrato.getFechaFin())) {
+            cuotasCompletas++;
+            inicioPeriodo = inicioPeriodo.plusMonths(contrato.getFrecuencia());
+        }
+
+        boolean tieneProrrateo = !inicioPeriodo.isAfter(contrato.getFechaFin());
+        contrato.setNumeroCuotas(cuotasCompletas + (tieneProrrateo ? 1 : 0));
     }
 
     @Override

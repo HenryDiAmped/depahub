@@ -44,6 +44,12 @@ public class Contrato {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal garantia;
 
+    @Column(nullable = false)
+    private Integer frecuencia;
+
+    @Column(nullable = false)
+    private Integer numeroCuotas;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private EstadoContrato estado = EstadoContrato.ACTIVO;
@@ -103,6 +109,22 @@ public class Contrato {
 
     public void setGarantia(BigDecimal garantia) {
         this.garantia = garantia;
+    }
+
+    public Integer getFrecuencia() {
+        return frecuencia;
+    }
+
+    public void setFrecuencia(Integer frecuencia) {
+        this.frecuencia = frecuencia;
+    }
+
+    public Integer getNumeroCuotas() {
+        return numeroCuotas;
+    }
+
+    public void setNumeroCuotas(Integer numeroCuotas) {
+        this.numeroCuotas = numeroCuotas;
     }
 
     public String getCondiciones() {

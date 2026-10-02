@@ -74,6 +74,8 @@ public class ContratoPdfService {
         agregarFila(tabla, "VIGENCIA", fecha(contrato.getFechaInicio()) + " al " + fecha(contrato.getFechaFin()));
         agregarFila(tabla, "ALQUILER MENSUAL", moneda(contrato.getMontoAlquiler()));
         agregarFila(tabla, "GARANTIA", moneda(contrato.getGarantia()));
+        agregarFila(tabla, "FRECUENCIA DE PAGO", "Cada " + contrato.getFrecuencia() + " meses");
+        agregarFila(tabla, "NUMERO DE CUOTAS", contrato.getNumeroCuotas().toString());
 
         document.add(tabla);
     }
@@ -86,8 +88,9 @@ public class ContratoPdfService {
                 "El presente contrato tiene vigencia desde el " + fecha(contrato.getFechaInicio())
                         + " hasta el " + fecha(contrato.getFechaFin()) + ".");
         agregarSeccion(document, "TERCERA. RENTA Y GARANTIA",
-                "El arrendatario pagara una renta mensual de " + moneda(contrato.getMontoAlquiler())
-                        + ". Asimismo, entrega una garantia de " + moneda(contrato.getGarantia())
+                "El arrendatario pagara una renta de " + moneda(contrato.getMontoAlquiler())
+                        + " cada " + contrato.getFrecuencia() + " meses, en un total de "
+                        + contrato.getNumeroCuotas() + " cuotas. Asimismo, entrega una garantia de " + moneda(contrato.getGarantia())
                         + ", sujeta a las condiciones de devolucion aplicables al finalizar el contrato.");
         if (contrato.getCondiciones() != null && !contrato.getCondiciones().isBlank()) {
             agregarSeccion(document, "CUARTA. CONDICIONES PARTICULARES", contrato.getCondiciones());
