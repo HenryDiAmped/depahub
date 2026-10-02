@@ -1,8 +1,8 @@
 package com.backend.depahub.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -41,6 +41,9 @@ public class Cuenta {
     @Column(nullable = false)
     private LocalDate fechaEmitida;
 
+    @Column
+    private LocalDate fechaVencimiento;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private EstadoCuenta estado = EstadoCuenta.PENDIENTE;
@@ -55,6 +58,12 @@ public class Cuenta {
     @JsonIgnoreProperties({"inmueble"})
     @OnDelete(action = OnDeleteAction.RESTRICT)
     private Inquilino inquilino;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contrato_id")
+    @JsonIgnore
+    @OnDelete(action = OnDeleteAction.RESTRICT)
+    private Contrato contrato;
 
     public Long getId() {
         return id;
@@ -96,6 +105,14 @@ public class Cuenta {
         this.fechaEmitida = fechaEmitida;
     }
 
+    public LocalDate getFechaVencimiento() {
+        return fechaVencimiento;
+    }
+
+    public void setFechaVencimiento(LocalDate fechaVencimiento) {
+        this.fechaVencimiento = fechaVencimiento;
+    }
+
     public EstadoCuenta getEstado() {
         return estado;
     }
@@ -118,5 +135,13 @@ public class Cuenta {
 
     public void setInquilino(Inquilino inquilino) {
         this.inquilino = inquilino;
+    }
+
+    public Contrato getContrato() {
+        return contrato;
+    }
+
+    public void setContrato(Contrato contrato) {
+        this.contrato = contrato;
     }
 }
