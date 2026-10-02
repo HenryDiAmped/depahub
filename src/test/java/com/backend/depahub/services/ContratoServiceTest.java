@@ -101,6 +101,28 @@ class ContratoServiceTest {
     }
 
     @Test
+    void rechazaUnContratoDeMenosDeUnMes() {
+        Contrato contrato = contrato(LocalDate.of(2026, 10, 2), LocalDate.of(2026, 10, 31), 1);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.prepararCreacion(contrato));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    void rechazaUnaFrecuenciaMayorQueElRangoDelContrato() {
+        Contrato contrato = contrato(LocalDate.of(2026, 10, 2), LocalDate.of(2026, 11, 1), 2);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.prepararCreacion(contrato));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
     void creaGarantiaYCuotasConSusVencimientos() {
         Contrato contrato = contrato(LocalDate.of(2026, 10, 2), LocalDate.of(2026, 12, 1), 1);
         contrato.setId(9L);
@@ -117,8 +139,8 @@ class ContratoServiceTest {
         List<Cuenta> cuentas = (List<Cuenta>) cuentasCaptor.getValue();
         assertEquals(3, cuentas.size());
         assertEquals(LocalDate.of(2026, 10, 5), cuentas.get(0).getFechaVencimiento());
-        assertEquals(LocalDate.of(2026, 10, 2), cuentas.get(1).getFechaVencimiento());
-        assertEquals(LocalDate.of(2026, 11, 2), cuentas.get(2).getFechaVencimiento());
+        assertEquals(LocalDate.of(2026, 11, 2), cuentas.get(1).getFechaVencimiento());
+        assertEquals(LocalDate.of(2026, 12, 2), cuentas.get(2).getFechaVencimiento());
         assertEquals(LocalDate.of(2026, 9, 29), cuentas.get(1).getFechaEmitida());
     }
 
@@ -138,7 +160,7 @@ class ContratoServiceTest {
         verify(cuentaRepository).saveAll(cuentasCaptor.capture());
         List<Cuenta> cuentas = (List<Cuenta>) cuentasCaptor.getValue();
         Cuenta prorrateada = cuentas.get(3);
-        assertEquals(LocalDate.of(2026, 5, 1), prorrateada.getFechaVencimiento());
+        assertEquals(LocalDate.of(2026, 5, 15), prorrateada.getFechaVencimiento());
         assertEquals(new BigDecimal("245.90"), prorrateada.getImporte());
         assertEquals("Cuota prorrateada 3 de 3 - Contrato #10", prorrateada.getConcepto());
     }
