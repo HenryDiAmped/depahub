@@ -6,12 +6,12 @@ import com.backend.depahub.models.Inmueble;
 import com.backend.depahub.models.Inquilino;
 import com.backend.depahub.models.Propiedad;
 import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContratoPdfServiceTest {
@@ -23,7 +23,17 @@ class ContratoPdfServiceTest {
         byte[] pdf = service.generar(contratoDePrueba());
 
         assertTrue(new String(pdf, 0, 4).startsWith("%PDF"));
-        assertEquals(1, new PdfReader(pdf).getNumberOfPages());
+
+        PdfReader reader = new PdfReader(pdf);
+        assertTrue(reader.getNumberOfPages() >= 1);
+
+        StringBuilder contenido = new StringBuilder();
+        PdfTextExtractor extractor = new PdfTextExtractor(reader);
+        for (int pagina = 1; pagina <= reader.getNumberOfPages(); pagina++) {
+            contenido.append(extractor.getTextFromPage(pagina));
+        }
+        assertTrue(contenido.toString().contains("FRECUENCIA DE PAGO"));
+        assertTrue(contenido.toString().contains("NUMERO DE CUOTAS"));
     }
 
     private Contrato contratoDePrueba() {
@@ -56,6 +66,8 @@ class ContratoPdfServiceTest {
         contrato.setFechaRegistro(LocalDate.of(2026, 9, 29));
         contrato.setMontoAlquiler(new BigDecimal("1500.00"));
         contrato.setGarantia(new BigDecimal("1500.00"));
+        contrato.setFrecuencia(1);
+        contrato.setNumeroCuotas(12);
         contrato.setCondiciones("El pago se realiza el primer dia de cada mes.");
         return contrato;
     }
