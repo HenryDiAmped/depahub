@@ -20,11 +20,14 @@ public class ContratoService extends BaseCrudService<Contrato> {
 
     private final ContratoRepository repository;
     private final CuentaRepository cuentaRepository;
+    private final BalanceMensualService balanceMensualService;
 
-    public ContratoService(ContratoRepository repository, CuentaRepository cuentaRepository) {
+    public ContratoService(ContratoRepository repository, CuentaRepository cuentaRepository,
+                           BalanceMensualService balanceMensualService) {
         super(repository);
         this.repository = repository;
         this.cuentaRepository = cuentaRepository;
+        this.balanceMensualService = balanceMensualService;
     }
 
     public List<Contrato> listarPorAdministrador(Long administradorId) {
@@ -48,6 +51,7 @@ public class ContratoService extends BaseCrudService<Contrato> {
     public Contrato crear(Contrato entity) {
         Contrato contrato = super.crear(entity);
         cuentaRepository.saveAll(generarCuentasPorCobrar(contrato));
+        crearBalanceDelMesActualSiCorresponde(contrato);
         return contrato;
     }
 
@@ -134,6 +138,13 @@ public class ContratoService extends BaseCrudService<Contrato> {
             cuentas.add(crearCuenta(contrato, cuota.importe(), concepto, cuota.fechaVencimiento()));
         }
         return cuentas;
+    }
+
+    private void crearBalanceDelMesActualSiCorresponde(Contrato contrato) {
+        LocalDate hoy = LocalDate.now();
+        if (!hoy.isBefore(contrato.getFechaInicio()) && !hoy.isAfter(contrato.getFechaFin())) {
+            balanceMensualService.obtenerOCrear(contrato.getAdministrador(), java.time.YearMonth.from(hoy));
+        }
     }
 
     private Cuenta crearCuenta(Contrato contrato, java.math.BigDecimal importe, String concepto, LocalDate vencimiento) {
