@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,11 +36,14 @@ class ContratoServiceTest {
     @Mock
     private CuentaRepository cuentaRepository;
 
+    @Mock
+    private BalanceMensualService balanceMensualService;
+
     private ContratoService service;
 
     @BeforeEach
     void setUp() {
-        service = new ContratoService(contratoRepository, cuentaRepository);
+        service = new ContratoService(contratoRepository, cuentaRepository, balanceMensualService);
     }
 
     @Test
@@ -142,6 +146,23 @@ class ContratoServiceTest {
         assertEquals(LocalDate.of(2026, 11, 2), cuentas.get(1).getFechaVencimiento());
         assertEquals(LocalDate.of(2026, 12, 2), cuentas.get(2).getFechaVencimiento());
         assertEquals(LocalDate.of(2026, 9, 29), cuentas.get(1).getFechaEmitida());
+    }
+
+    @Test
+    void creaElBalanceDelMesActualCuandoElContratoEstaVigente() {
+        LocalDate hoy = LocalDate.now();
+        Contrato contrato = contrato(hoy.minusDays(1), hoy.plusMonths(1), 1);
+        contrato.setId(11L);
+        contrato.setGarantia(new BigDecimal("500.00"));
+        Administrador administrador = new Administrador();
+        administrador.setId(3L);
+        contrato.setAdministrador(administrador);
+        contrato.setInquilino(new Inquilino());
+        when(contratoRepository.save(any(Contrato.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.crear(contrato);
+
+        verify(balanceMensualService).obtenerOCrear(administrador, YearMonth.from(hoy));
     }
 
     @Test
