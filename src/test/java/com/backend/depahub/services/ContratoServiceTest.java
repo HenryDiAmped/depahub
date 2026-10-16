@@ -19,11 +19,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -184,6 +185,84 @@ class ContratoServiceTest {
         assertEquals(LocalDate.of(2026, 5, 15), prorrateada.getFechaVencimiento());
         assertEquals(new BigDecimal("245.90"), prorrateada.getImporte());
         assertEquals("Cuota prorrateada 3 de 3 - Contrato #10", prorrateada.getConcepto());
+    }
+
+    @Test
+    void listaLosContratosPorAdministrador() {
+        Contrato contrato = contrato(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 1);
+        when(contratoRepository.findByAdministradorId(3L)).thenReturn(List.of(contrato));
+
+        assertEquals(List.of(contrato), service.listarPorAdministrador(3L));
+        verify(contratoRepository).findByAdministradorId(3L);
+    }
+
+    @Test
+    void listaLosContratosPorInquilino() {
+        Contrato contrato = contrato(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 1);
+        when(contratoRepository.findByInquilinoId(8L)).thenReturn(List.of(contrato));
+
+        assertEquals(List.of(contrato), service.listarPorInquilino(8L));
+        verify(contratoRepository).findByInquilinoId(8L);
+    }
+
+    @Test
+    void entregaElContratoSiElAdministradorEsElDueno() {
+        Contrato contrato = contratoConAdministrador("ana@depahub.test");
+        when(contratoRepository.findById(9L)).thenReturn(Optional.of(contrato));
+
+        assertEquals(contrato, service.obtenerParaAdministrador(9L, "ana@depahub.test"));
+    }
+
+    @Test
+    void rechazaElAccesoSiElAdministradorNoEsElDueno() {
+        Contrato contrato = contratoConAdministrador("ana@depahub.test");
+        when(contratoRepository.findById(9L)).thenReturn(Optional.of(contrato));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.obtenerParaAdministrador(9L, "otro@depahub.test"));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
+    @Test
+    void rechazaFechasDeInicioOFinNulas() {
+        Contrato sinInicio = contrato(null, LocalDate.of(2026, 12, 31), 1);
+        Contrato sinFin = contrato(LocalDate.of(2026, 1, 1), null, 1);
+
+        ResponseStatusException sinInicioException = assertThrows(
+                ResponseStatusException.class,
+                () -> service.prepararCreacion(sinInicio));
+        ResponseStatusException sinFinException = assertThrows(
+                ResponseStatusException.class,
+                () -> service.prepararCreacion(sinFin));
+
+        assertEquals(HttpStatus.BAD_REQUEST, sinInicioException.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, sinFinException.getStatusCode());
+    }
+
+    @Test
+    void noCreaElBalanceDelMesActualCuandoElContratoNoEstaVigente() {
+        LocalDate hoy = LocalDate.now();
+        Contrato contrato = contrato(hoy.plusDays(2), hoy.plusMonths(2), 1);
+        contrato.setId(12L);
+        contrato.setGarantia(new BigDecimal("500.00"));
+        contrato.setAdministrador(new Administrador());
+        contrato.setInquilino(new Inquilino());
+        when(contratoRepository.save(any(Contrato.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.crear(contrato);
+
+        verify(balanceMensualService, never()).obtenerOCrear(any(), any());
+    }
+
+    private Contrato contratoConAdministrador(String email) {
+        Administrador administrador = new Administrador();
+        administrador.setEmail(email);
+        Contrato contrato = contrato(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 1);
+        contrato.setId(9L);
+        contrato.setAdministrador(administrador);
+        return contrato;
     }
 
     private Contrato contrato(LocalDate inicio, LocalDate fin, int frecuencia) {

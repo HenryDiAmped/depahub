@@ -16,12 +16,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -105,6 +106,64 @@ class CuentaServiceTest {
         assertEquals(LocalDate.now(), ingresoCaptor.getValue().getFecha());
         assertEquals(LocalDate.now(), egresoCaptor.getValue().getFecha());
         verify(balanceMensualService, org.mockito.Mockito.times(2)).guardarTotalesAutomaticos(balance);
+    }
+
+    @Test
+    void listaLasCuentasPorAdministrador() {
+        Cuenta cuenta = cuentaPendiente(1L);
+        when(cuentaRepository.findByAdministradorId(7L)).thenReturn(List.of(cuenta));
+
+        assertEquals(List.of(cuenta), service.listarPorAdministrador(7L));
+        verify(cuentaRepository).findByAdministradorId(7L);
+    }
+
+    @Test
+    void listaLasCuentasPorInquilino() {
+        Cuenta cuenta = cuentaPendiente(1L);
+        when(cuentaRepository.findByInquilinoId(3L)).thenReturn(List.of(cuenta));
+
+        assertEquals(List.of(cuenta), service.listarPorInquilino(3L));
+        verify(cuentaRepository).findByInquilinoId(3L);
+    }
+
+    @Test
+    void permiteUnVencimientoIgualALaEmision() {
+        Cuenta cuenta = cuentaConFechas(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 1));
+
+        assertDoesNotThrow(() -> service.prepararCreacion(cuenta));
+    }
+
+    @Test
+    void noCreaMovimientoSiLaCuentaSiguePendiente() {
+        Cuenta persistida = cuentaPendiente(1L);
+        Cuenta actualizacion = cuentaPendiente(1L);
+        when(cuentaRepository.findById(1L)).thenReturn(java.util.Optional.of(persistida));
+        when(cuentaRepository.save(any(Cuenta.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.actualizar(1L, actualizacion);
+
+        verify(cuentaRepository).save(actualizacion);
+        verify(ingresoRepository, never()).save(any());
+        verify(egresoRepository, never()).save(any());
+        verify(balanceMensualService, never()).obtenerOCrear(any(), any());
+        verify(balanceMensualService, never()).guardarTotalesAutomaticos(any());
+    }
+
+    @Test
+    void noDuplicaElMovimientoSiLaCuentaYaEstabaSaldada() {
+        Administrador administrador = new Administrador();
+        administrador.setId(7L);
+        Cuenta persistida = cuentaSaldada(1L, Cuenta.TipoCuenta.POR_COBRAR, new java.math.BigDecimal("250.00"), administrador);
+        Cuenta actualizacion = cuentaSaldada(1L, Cuenta.TipoCuenta.POR_COBRAR, new java.math.BigDecimal("250.00"), administrador);
+        when(cuentaRepository.findById(1L)).thenReturn(java.util.Optional.of(persistida));
+        when(cuentaRepository.save(any(Cuenta.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.actualizar(1L, actualizacion);
+
+        verify(ingresoRepository, never()).save(any());
+        verify(egresoRepository, never()).save(any());
+        verify(balanceMensualService, never()).obtenerOCrear(any(), any());
+        verify(balanceMensualService, never()).guardarTotalesAutomaticos(any());
     }
 
     private Cuenta cuentaSaldada(Long id, Cuenta.TipoCuenta tipo, java.math.BigDecimal importe, Administrador administrador) {

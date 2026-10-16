@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContratoPdfServiceTest {
@@ -27,13 +28,41 @@ class ContratoPdfServiceTest {
         PdfReader reader = new PdfReader(pdf);
         assertTrue(reader.getNumberOfPages() >= 1);
 
+        String contenido = textoDelPdf(reader);
+        assertTrue(contenido.contains("FRECUENCIA DE PAGO"));
+        assertTrue(contenido.contains("NUMERO DE CUOTAS"));
+        assertTrue(contenido.contains("Ana Perez"));
+        assertTrue(contenido.contains("12345678"));
+        assertTrue(contenido.contains("Luis Gomez"));
+        assertTrue(contenido.contains("87654321"));
+        assertTrue(contenido.contains("Departamento 401"));
+        assertTrue(contenido.contains("Av. Principal 123"));
+        assertTrue(contenido.contains("Miraflores"));
+        assertTrue(contenido.contains("CUARTA. CONDICIONES PARTICULARES"));
+        assertTrue(contenido.contains("El pago se realiza el primer dia de cada mes."));
+    }
+
+    @Test
+    void generaElPdfAunqueNoHayaCondicionesParticulares() throws Exception {
+        ContratoPdfService service = new ContratoPdfService();
+        Contrato contrato = contratoDePrueba();
+        contrato.setCondiciones(null);
+
+        byte[] pdf = service.generar(contrato);
+
+        assertTrue(new String(pdf, 0, 4).startsWith("%PDF"));
+        String contenido = textoDelPdf(new PdfReader(pdf));
+        assertTrue(contenido.contains("QUINTA. CONFORMIDAD"));
+        assertFalse(contenido.contains("CUARTA. CONDICIONES PARTICULARES"));
+    }
+
+    private String textoDelPdf(PdfReader reader) throws Exception {
         StringBuilder contenido = new StringBuilder();
         PdfTextExtractor extractor = new PdfTextExtractor(reader);
         for (int pagina = 1; pagina <= reader.getNumberOfPages(); pagina++) {
             contenido.append(extractor.getTextFromPage(pagina));
         }
-        assertTrue(contenido.toString().contains("FRECUENCIA DE PAGO"));
-        assertTrue(contenido.toString().contains("NUMERO DE CUOTAS"));
+        return contenido.toString();
     }
 
     private Contrato contratoDePrueba() {

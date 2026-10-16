@@ -29,4 +29,28 @@ class JwtServiceTest {
 
         assertThrows(JwtException.class, () -> jwtService.extraerEmail("token.invalido.firmado"));
     }
+
+    @Test
+    void rechazaUnSecretDeMenosDe32Caracteres() {
+        assertThrows(IllegalStateException.class, () -> new JwtService("secret-corto", 3_600_000));
+    }
+
+    @Test
+    void rechazaUnaExpiracionMenorOIgualACero() {
+        assertThrows(IllegalStateException.class, () -> new JwtService(SECRET, 0));
+        assertThrows(IllegalStateException.class, () -> new JwtService(SECRET, -1));
+    }
+
+    @Test
+    void rechazaUnTokenExpirado() throws InterruptedException {
+        JwtService jwtService = new JwtService(SECRET, 1);
+        Administrador administrador = new Administrador();
+        administrador.setId(7L);
+        administrador.setEmail("admin@depahub.test");
+
+        String token = jwtService.generarToken(administrador);
+        Thread.sleep(50);
+
+        assertThrows(JwtException.class, () -> jwtService.extraerEmail(token));
+    }
 }
