@@ -19,9 +19,11 @@ Content-Type: application/json
 - Las respuestas de listado son arreglos JSON.
 - Los recursos se identifican con `id` numérico.
 - Para crear se usa `POST`, para actualizar `PUT` y para eliminar `DELETE`.
-- Una eliminación exitosa puede responder sin contenido (`204 No Content`).
+- Una creación exitosa responde `201 Created`.
+- Una eliminación exitosa responde sin contenido (`204 No Content`).
 - Los campos de fecha usan el formato `YYYY-MM-DD`.
 - Los importes monetarios son números decimales.
+- La `password` del administrador es de solo escritura: se envía al crear o actualizar, pero **nunca** aparece en las respuestas JSON.
 
 ## Autenticación
 
@@ -63,11 +65,16 @@ Authorization: Bearer <token>
 }
 ```
 
-Respuesta esperada para ambas rutas:
+`fechaRegistro` y `utilidadTotal` son opcionales al registrar: si no se envían, el backend usa la fecha de hoy y `0`.
+
+Respuestas:
+
+- `POST /auth/register` → `201 Created`, `"mensaje": "Registro exitoso"`
+- `POST /auth/login` → `200 OK`, `"mensaje": "Login exitoso"`
 
 ```json
 {
-  "mensaje": "Operación exitosa",
+  "mensaje": "Registro exitoso",
   "token": "eyJhbGciOiJIUzI1NiJ9...",
   "administrador": {
     "id": 1,
@@ -81,6 +88,14 @@ Respuesta esperada para ambas rutas:
 }
 ```
 
+Errores de autenticación:
+
+| Estado | Cuándo |
+| --- | --- |
+| `400` | Password vacía al registrar. |
+| `401` | Email o password incorrectos al iniciar sesión. |
+| `409` | El email ya está registrado. |
+
 ## Administradores
 
 | Método | Ruta | Descripción |
@@ -93,9 +108,10 @@ Respuesta esperada para ambas rutas:
 
 Objeto `Administrador`:
 
+Cuerpo al crear o actualizar (la `password` es obligatoria al crear; al actualizar, si viene vacía se conserva la actual):
+
 ```json
 {
-  "id": 1,
   "nombreCompleto": "Ana Pérez",
   "dni": "12345678",
   "email": "ana@correo.com",
@@ -105,6 +121,8 @@ Objeto `Administrador`:
   "utilidadTotal": 2500.5
 }
 ```
+
+La respuesta **no incluye** `password`. El email no puede repetirse (`409`).
 
 ## Propiedades
 
@@ -210,16 +228,16 @@ inquilino.inmueble.propiedad.administrador.id
 | `GET` | `/contratos` | Lista los contratos. |
 | `GET` | `/contratos?administradorId={id}` | Lista contratos de un administrador. |
 | `GET` | `/contratos?inquilinoId={id}` | Lista contratos de un inquilino. |
-| `GET` | `/contratos?administradorId={id}&inquilinoId={id}` | Aplica ambos filtros. |
 | `GET` | `/contratos/{id}` | Obtiene un contrato. |
 | `GET` | `/contratos/{id}/pdf` | Genera y devuelve el contrato en PDF. |
 | `POST` | `/contratos` | Crea un contrato. |
 | `PUT` | `/contratos/{id}` | Actualiza un contrato. |
 | `DELETE` | `/contratos/{id}` | Elimina un contrato. |
 
-La respuesta de `GET /contratos/{id}/pdf` es binaria (`application/pdf`) y
-requiere el encabezado `Authorization: Bearer <token>`. Solo el administrador
-titular del contrato puede obtenerlo.
+La respuesta de `GET /contratos/{id}/pdf` es binaria (`application/pdf`), con
+`Content-Disposition: inline; filename="contrato-{id}.pdf"`. Requiere
+`Authorization: Bearer <token>`. Solo el administrador titular del contrato
+puede obtenerlo (`403` si no es el dueño).
 
 ```json
 {
@@ -228,16 +246,32 @@ titular del contrato puede obtenerlo.
   "montoAlquiler": 350,
   "garantia": 350,
   "frecuencia": 1,
-  "numeroCuotas": 12,
   "estado": "ACTIVO",
   "condiciones": "Pago mensual adelantado",
-  "fechaRegistro": "2026-09-04",
   "administrador": { "id": 1 },
   "inquilino": { "id": 1 }
 }
 ```
 
 Valores admitidos para `estado`: `ACTIVO`, `FINALIZADO`, `CANCELADO`.
+
+Al crear o actualizar, el backend **calcula** `numeroCuotas` según `fechaInicio`,
+`fechaFin` y `frecuencia` (meses entre cuotas). `fechaRegistro` es opcional; si
+no se envía, se usa la fecha de hoy. `condiciones` es opcional.
+
+Reglas de validación (`400`):
+
+- `fechaInicio` y `fechaFin` son obligatorias.
+- `fechaFin` no puede ser anterior a `fechaInicio`.
+- El contrato debe durar al menos un mes.
+- `frecuencia` debe ser mayor que cero y caber en la duración del contrato.
+
+Efectos al crear un contrato:
+
+- Genera una cuenta por cobrar de **garantía** (vence 3 días después del inicio)
+  y una por cada cuota, con su vencimiento.
+- Si el contrato está vigente hoy, obtiene o crea el **balance mensual** del
+  administrador para el mes actual.
 
 ## Cuentas
 
@@ -246,11 +280,6 @@ Valores admitidos para `estado`: `ACTIVO`, `FINALIZADO`, `CANCELADO`.
 | `GET` | `/cuentas` | Lista las cuentas. |
 | `GET` | `/cuentas?administradorId={id}` | Lista cuentas de un administrador. |
 | `GET` | `/cuentas?inquilinoId={id}` | Lista cuentas de un inquilino. |
-
-Una cuenta puede incluir opcionalmente `fechaVencimiento` (`YYYY-MM-DD`). Al crear
-un contrato, el sistema genera automáticamente una cuenta por cobrar de garantía y
-una por cada cuota, con sus respectivas fechas de vencimiento.
-| `GET` | `/cuentas?administradorId={id}&inquilinoId={id}` | Aplica ambos filtros. |
 | `GET` | `/cuentas/{id}` | Obtiene una cuenta. |
 | `POST` | `/cuentas` | Crea una cuenta. |
 | `PUT` | `/cuentas/{id}` | Actualiza una cuenta. |
@@ -262,15 +291,28 @@ una por cada cuota, con sus respectivas fechas de vencimiento.
   "importe": 350,
   "concepto": "Mensualidad de septiembre",
   "fechaEmitida": "2026-09-01",
+  "fechaVencimiento": "2026-09-05",
   "estado": "PENDIENTE",
   "administrador": { "id": 1 },
-  "inquilino": { "id": 1 }
+  "inquilino": { "id": 1 },
+  "contrato": { "id": 9 }
 }
 ```
 
 Valores de `tipo`: `POR_COBRAR`, `POR_PAGAR`.
 
 Valores de `estado`: `PENDIENTE`, `SALDADA`.
+
+`fechaVencimiento` es opcional. Si se envía, no puede ser anterior a
+`fechaEmitida` (`400`). `contrato` es opcional (las cuentas generadas al crear
+un contrato sí lo traen).
+
+Al pasar una cuenta de `PENDIENTE` a `SALDADA` con `PUT`:
+
+- `POR_COBRAR` crea un **ingreso** en el balance del mes actual.
+- `POR_PAGAR` crea un **egreso** en el balance del mes actual.
+- Se actualizan `totalIngresos` / `totalEgresos` y se recalcula `utilidad`.
+- Si la cuenta ya estaba `SALDADA`, no se duplica el movimiento.
 
 ## Balances mensuales
 
@@ -294,6 +336,9 @@ Valores de `estado`: `PENDIENTE`, `SALDADA`.
   "administrador": { "id": 1 }
 }
 ```
+
+`utilidad` se recalcula como `totalIngresos - totalEgresos`. Si no se envía
+`fechaGeneracion` al crear, se usa la fecha de hoy.
 
 ## Ingresos y egresos
 
@@ -328,3 +373,13 @@ Un egreso utiliza el mismo formato, cambiando el concepto según corresponda.
 ## Manejo de errores
 
 Cuando la API devuelve un estado HTTP no exitoso, el frontend intenta leer los campos `message` o `error` del JSON de respuesta. Si no están disponibles, muestra el código HTTP como mensaje de error.
+
+Estados habituales:
+
+| Estado | Significado |
+| --- | --- |
+| `400` | Datos inválidos (fechas, frecuencia, password vacía, etc.). |
+| `401` | Credenciales incorrectas, o JWT inválido/expirado (`{"message":"Token inválido o expirado"}`). |
+| `403` | Sin permiso (por ejemplo, PDF de un contrato ajeno). |
+| `404` | Registro no encontrado. |
+| `409` | Email de administrador duplicado. |
