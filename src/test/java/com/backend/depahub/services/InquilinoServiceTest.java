@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
@@ -20,11 +21,14 @@ class InquilinoServiceTest {
     @Mock
     private InquilinoRepository repository;
 
+    @Mock
+    private ContratoVencimientoService contratoVencimientoService;
+
     private InquilinoService service;
 
     @BeforeEach
     void setUp() {
-        service = new InquilinoService(repository);
+        service = new InquilinoService(repository, contratoVencimientoService);
     }
 
     @Test
@@ -34,5 +38,20 @@ class InquilinoServiceTest {
 
         assertEquals(List.of(inquilino), service.listarPorInmueble(8L));
         verify(repository).findByInmuebleId(8L);
+    }
+
+    @Test
+    void alRetirarManualmenteCancelaLosContratosActivosDelInquilino() {
+        Inquilino actual = new Inquilino();
+        actual.setId(4L);
+        actual.setEstado(Inquilino.EstadoInquilino.ACTIVO);
+        Inquilino retiro = new Inquilino();
+        retiro.setEstado(Inquilino.EstadoInquilino.RETIRADO);
+        when(repository.findById(4L)).thenReturn(Optional.of(actual));
+        when(repository.save(retiro)).thenReturn(retiro);
+
+        service.actualizar(4L, retiro);
+
+        verify(contratoVencimientoService).cancelarContratosActivosYRetirar(actual);
     }
 }
